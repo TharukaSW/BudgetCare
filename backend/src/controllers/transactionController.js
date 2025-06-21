@@ -59,17 +59,36 @@ export async function getTransactionSummary(req, res) {
 
 export async function createTransaction(req, res) {
     try {
-        const {user_ID, amount, title, category} = req.body;
-      
-        if (!user_ID || !amount || !title || !category) {
-          return res.status(400).json({ error: "All fields are required" });
-        }
-    
-        await sql`INSERT INTO transactions (user_ID, amount, title, category) VALUES (${user_ID}, ${amount}, ${title}, ${category}) RETURNING *`;
-        res.status(201).json({ message: "Transaction created successfully" });
+        const { user_ID, amount, title, category } = req.body;
         
-      } catch (error) {
-        console.log("Error creating transaction:", error);
-        res.status(500).json({ error: "Internal server error" });
-      }
+        if (!user_ID || amount === undefined || !title || !category) {
+            return res.status(400).json({ 
+                error: "All fields are required",
+                requiredFields: ["user_ID", "amount", "title", "category"]
+            });
+        }
+
+        // Additional validation
+        if (typeof amount !== 'number') {
+            return res.status(400).json({ error: "Amount must be a number" });
+        }
+
+        const [transaction] = await sql`
+            INSERT INTO transactions (user_ID, amount, title, category)
+            VALUES (${user_ID}, ${amount}, ${title}, ${category})
+            RETURNING *
+        `;
+
+        res.status(201).json({
+            message: "Transaction created",
+            transaction
+        });
+        
+    } catch (error) {
+        console.error("Database error:", error);
+        res.status(500).json({ 
+            error: "Internal server error",
+            details: error.message 
+        });
+    }
 }
